@@ -25,7 +25,6 @@ def urlscraper(url, fname):
 
     :param url: A Kijiji URL that has Car Advertisements
     :param fname: Name of the CSV file that the data gets stored in. Remember to include .csv at the end
-    :return: None
     :effects: Creates and writes to a CSV file
     """
     response = requests.get(url)
@@ -37,10 +36,8 @@ def urlscraper(url, fname):
 
         isasis: (listof Str) -> Bool
         requires: lod is a lower case list of Strs
-
-        :param lod:
-        :return:
         """
+
         length = len(lod)
 
         pos = 0
@@ -156,5 +153,3 @@ def urlscraper(url, fname):
                 # Writing the line to the file
                 csv_writer.writerow([Price, Make, Model, Year, KMs, Trim, Transmission,
                                      Body, Color, Drivetrain, Doors, Seats, isDealer, isFlagged, URL, Description])
-
-# Now I just need to make it automatically scroll through pages and grab EVERYTHING. Once I've done that, we're good!

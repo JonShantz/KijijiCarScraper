@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from csv import writer
-
+import requests
 
 # Returns the Text if non-empty, and "-" if empty
 def process(rawdata):
@@ -29,7 +29,11 @@ def urlscraper(url, fname):
     :effects: Creates and writes to a CSV file
     """
     response = requests.get(url)
+
     soup = BeautifulSoup(response.text, 'html.parser')
+    LocationDatePosted = soup.find(class_="location").get_text().strip()
+    DatePosted = soup.find(class_="location").find(class_="date-posted").get_text().strip()
+    Location = LocationDatePosted[:LocationDatePosted.find(DatePosted)]
 
     def isasis(lod):
         """
@@ -58,47 +62,57 @@ def urlscraper(url, fname):
     # Going to each ad separately and pulling the data.
     with open(fname, 'w') as csv_file:
         csv_writer = writer(csv_file)
-        headers = ["Price", "Make", "Model", "Year", "KMs", "Trim", "Transmission",
-                   "Body", "Color", "Drivetrain", "Doors", "Seats", "isDealer", "AsIs", "URL", "Description"]
+        headers = ["Location", "Price", "Make", "Model", "Year", "KMs", "Trim", "Transmission", "Body", "Color",
+                   "Drivetrain", "Doors", "Seats", "isDealer", "isFlagged", "Address", "URL", "Description"]
         csv_writer.writerow(headers)
 
         # Grab the posts from the first page
         posts = soup.find_all(class_="info-container")
 
         for post in posts:
-            URLUnique = post.find('a')['href']
-            URLRoot = "https://www.kijiji.ca"
-            URL = URLRoot + URLUnique
+            try:
+                if post is None:
+                    pass
+                else:
+                    URLUnique = post.find('a')['href']
+                    URLRoot = "https://www.kijiji.ca"
+                    URL = URLRoot + URLUnique
 
-            CarResponse = requests.get(URL)
-            CarSoup = BeautifulSoup(CarResponse.text, 'html.parser')
+                    CarResponse = requests.get(URL)
+                    CarSoup = BeautifulSoup(CarResponse.text, 'html.parser')
 
-            # Pulling data on each car from the info panel
-            isDealer = post.find(class_="dealer-logo-image") is not None
-            # Want to pull description from CarSoup instead of from the homepage (Posts)
-            Description = process(CarSoup.find(class_="descriptionContainer-3544745383"))[11:]
-            if Description is not None:
-                isFlagged = isasis(Description.lower().split())
-            else:
-                isFlagged = False
+                    # Pulling data on each car from the info panel
+                    isDealer = post.find(class_="dealer-logo-image") is not None
+                    # Want to pull description from CarSoup instead of from the homepage (Posts)
+                    Description = process(CarSoup.find(class_="descriptionContainer-3544745383"))[11:]
+                    if Description is not None:
+                        isFlagged = isasis(Description.lower().split())
+                    else:
+                        isFlagged = False
 
-            CarData = CarSoup.find(class_="attributeListWrapper-1585172129")
-            Price = process(CarSoup.find(class_="priceContainer-2538502416"))
-            Year = process(CarData.find(itemprop="vehicleModelDate"))
-            Make = process(CarData.find(itemprop="brand"))
-            Model = process(CarData.find(itemprop="model"))
-            Trim = process(CarData.find(itemprop="vehicleConfiguration"))
-            Color = process(CarData.find(itemprop="color"))
-            Body = process(CarData.find(itemprop="bodyType"))
-            Doors = process(CarData.find(itemprop="numberOfDoors"))
-            Seats = process(CarData.find(itemprop="seatingCapacity"))
-            Drivetrain = process(CarData.find(itemprop="driveWheelConfiguration"))
-            Transmission = process(CarData.find(itemprop="vehicleTransmission"))
-            KMs = process(CarData.find(itemprop="mileageFromOdometer"))
+                    if CarSoup.find(itemprop="address") is not None:
+                        Address = CarSoup.find(itemprop="address").get_text()
+                    else:
+                        Address = "N/a"
+                    CarData = CarSoup.find(class_="attributeListWrapper-1585172129")
+                    Price = process(CarSoup.find(class_="priceContainer-2538502416"))
+                    Year = process(CarData.find(itemprop="vehicleModelDate"))
+                    Make = process(CarData.find(itemprop="brand"))
+                    Model = process(CarData.find(itemprop="model"))
+                    Trim = process(CarData.find(itemprop="vehicleConfiguration"))
+                    Color = process(CarData.find(itemprop="color"))
+                    Body = process(CarData.find(itemprop="bodyType"))
+                    Doors = process(CarData.find(itemprop="numberOfDoors"))
+                    Seats = process(CarData.find(itemprop="seatingCapacity"))
+                    Drivetrain = process(CarData.find(itemprop="driveWheelConfiguration"))
+                    Transmission = process(CarData.find(itemprop="vehicleTransmission"))
+                    KMs = process(CarData.find(itemprop="mileageFromOdometer"))
 
-            # Writing the line to the file
-            csv_writer.writerow([Price, Make, Model, Year, KMs, Trim, Transmission,
-                                 Body, Color, Drivetrain, Doors, Seats, isDealer, isFlagged, URL, Description])
+                    # Writing the line to the file
+                    csv_writer.writerow([Location, Price, Make, Model, Year, KMs, Trim, Transmission, Body, Color,
+                                         Drivetrain, Doors, Seats, isDealer, isFlagged, Address, URL, Description])
+            except RuntimeError:
+                pass
 
         # Repeat as long as there are next pages to be done. This isn't elegant, and possibly not efficient, but
         #   should get the job done?
@@ -123,38 +137,45 @@ def urlscraper(url, fname):
 
             # This is the ad level ('Clicking' on each URL)
             for post in posts:
-                URLUnique = post.find('a')['href']
-                URLRoot = "https://www.kijiji.ca"
-                URL = URLRoot + URLUnique
+                try:
+                    URLUnique = post.find('a')['href']
+                    URLRoot = "https://www.kijiji.ca"
+                    URL = URLRoot + URLUnique
 
-                CarResponse = requests.get(URL)
-                CarSoup = BeautifulSoup(CarResponse.text, 'html.parser')
+                    CarResponse = requests.get(URL)
+                    CarSoup = BeautifulSoup(CarResponse.text, 'html.parser')
 
-                # Pulling data on each car from the info panel
-                isDealer = post.find(class_="dealer-logo-image") is not None
-                # Take Char 11-End to remove "Description" which is at the beginning of each description.
-                Description = process(CarSoup.find(class_="descriptionContainer-3544745383"))[11:]
-                if Description is not None:
-                    isFlagged = isasis(Description.lower().split())
-                else:
-                    isFlagged = False
+                    # Pulling data on each car from the info panel
+                    isDealer = post.find(class_="dealer-logo-image") is not None
+                    # Take Char 11-End to remove "Description" which is at the beginning of each description.
+                    Description = process(CarSoup.find(class_="descriptionContainer-3544745383"))[11:]
+                    if Description is not None:
+                        isFlagged = isasis(Description.lower().split())
+                    else:
+                        isFlagged = False
+                    if CarSoup.find(itemprop="address") is not None:
+                        Address = CarSoup.find(itemprop="address").get_text()
+                    else:
+                        Address = "N/a"
+                    CarData = CarSoup.find(class_="attributeListWrapper-1585172129")
+                    Price = process(CarSoup.find(class_="priceContainer-2538502416"))
+                    Year = process(CarData.find(itemprop="vehicleModelDate"))
+                    Make = process(CarData.find(itemprop="brand"))
+                    Model = process(CarData.find(itemprop="model"))
+                    Trim = process(CarData.find(itemprop="vehicleConfiguration"))
+                    Color = process(CarData.find(itemprop="color"))
+                    Body = process(CarData.find(itemprop="bodyType"))
+                    Doors = process(CarData.find(itemprop="numberOfDoors"))
+                    Seats = process(CarData.find(itemprop="seatingCapacity"))
+                    Drivetrain = process(CarData.find(itemprop="driveWheelConfiguration"))
+                    Transmission = process(CarData.find(itemprop="vehicleTransmission"))
+                    KMs = process(CarData.find(itemprop="mileageFromOdometer"))
 
-                CarData = CarSoup.find(class_="attributeListWrapper-1585172129")
-                Price = process(CarSoup.find(class_="priceContainer-2538502416"))
-                Year = process(CarData.find(itemprop="vehicleModelDate"))
-                Make = process(CarData.find(itemprop="brand"))
-                Model = process(CarData.find(itemprop="model"))
-                Trim = process(CarData.find(itemprop="vehicleConfiguration"))
-                Color = process(CarData.find(itemprop="color"))
-                Body = process(CarData.find(itemprop="bodyType"))
-                Doors = process(CarData.find(itemprop="numberOfDoors"))
-                Seats = process(CarData.find(itemprop="seatingCapacity"))
-                Drivetrain = process(CarData.find(itemprop="driveWheelConfiguration"))
-                Transmission = process(CarData.find(itemprop="vehicleTransmission"))
-                KMs = process(CarData.find(itemprop="mileageFromOdometer"))
+                    # Writing the line to the file
+                    csv_writer.writerow([Location, Price, Make, Model, Year, KMs, Trim, Transmission, Body, Color,
+                                         Drivetrain, Doors, Seats, isDealer, isFlagged, Address, URL, Description])
+                except RuntimeError:
+                    pass
 
-                # Writing the line to the file
-                csv_writer.writerow([Price, Make, Model, Year, KMs, Trim, Transmission,
-                                     Body, Color, Drivetrain, Doors, Seats, isDealer, isFlagged, URL, Description])
-
+    csv_file.close()
 # Now I just need to make it automatically scroll through pages and grab EVERYTHING. Once I've done that, we're good!

@@ -10,7 +10,7 @@ def process(rawdata):
     else:
         return rawdata.get_text()
 
-
+ 
 # Flagged Word List = "As is", "Rebuild", "Rebuilt", "Salvaged". "Salvage"
 # This might be good to implement later, but would also take a lot of computation time, so right now just
 #    looking for "as is"
